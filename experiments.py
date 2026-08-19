@@ -68,8 +68,10 @@ def main(n_dim=2, n_seeds=5):
     axes[0].set_ylabel("True Positive Rate")
     plt.suptitle(f"ROC curves, {n_dim}D toy dataset, {n_seeds} seeds")
     plt.tight_layout()
-    plt.savefig("roc_curves.png", dpi=150)
-    print("Saved roc_curves.png")
+    import os
+    os.makedirs("plots", exist_ok=True)
+    plt.savefig("plots/roc_curves.png", dpi=150)
+    print("Saved plots/roc_curves.png")
 
 
 if __name__ == "__main__":

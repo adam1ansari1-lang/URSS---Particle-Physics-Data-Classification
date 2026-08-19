@@ -66,5 +66,7 @@ plt.legend(fontsize=7)
 plt.grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("dimensionality_investigation.png", dpi=150)
-print("Saved dimensionality_investigation.png")
+import os
+os.makedirs("plots", exist_ok=True)
+plt.savefig("plots/dimensionality_investigation.png", dpi=150)
+print("Saved plots/dimensionality_investigation.png")
