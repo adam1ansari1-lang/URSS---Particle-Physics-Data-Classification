@@ -18,7 +18,7 @@ def generate_toy_dataset(
     n_samples=500,
     n_dim=2,
     signal_fraction=0.35,
-    bg_sigma=1.0,
+    bg_sigma=1.0, #BR STD
     shell_radius=2.0,
     shell_width=0.3,
     random_state=None,
@@ -61,23 +61,27 @@ def generate_toy_dataset(
 
     # 3 & 4. Signal radius: draw from a narrow Gaussian around shell_radius,
     #        giving the shell a small width (finite resonance width).
-    radii = rng.normal(loc=shell_radius, scale=shell_width, size=(n_signal, 1))
+    radii = rng.normal(loc=shell_radius, scale=shell_width, size=(n_signal, 1)) 
+    #lets us have n_signal rows, a column vector and random radius per signal event
 
     X_signal = unit_directions * radii
 
     # 5. Combine and label
-    X = np.vstack([X_background, X_signal])
+    X = np.vstack([X_background, X_signal]) #stacks the 2 point arrays on top of eachother, into one array X. BR rows first then signal rows
     y = np.concatenate([np.zeros(n_background), np.ones(n_signal)])
+    #Array of 0s per BR event and 1s per signal, concatenate joins those 2 arrays into one array y, 
+    #in the same ofer as X so y[i] correctly labels x[i]
 
     # Shuffle so signal/background aren't grouped in order
     shuffle_idx = rng.permutation(n_samples)
     X = X[shuffle_idx]
     y = y[shuffle_idx]
+    #This shuffle function re orders the rows of x and y so that they are in random order - good for training
 
     return X, y
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":    #makes sure this block only runs when we execute data.py directly 
     # Quick manual check
     X, y = generate_toy_dataset(n_samples=500, n_dim=2, random_state=0)
     print("X shape:", X.shape, "y shape:", y.shape)
