@@ -4,6 +4,8 @@ Week 1: train/tune classical baselines over 5 random seeds,
 report ROC/AUC as mean +/- std, and save a combined ROC plot.
 """
 
+import os
+import csv
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -38,6 +40,15 @@ def run_seed(seed, n_dim=2):
         fpr, tpr, _ = roc_curve(y_test, y_score)
         auc = roc_auc_score(y_test, y_score)
         results[name] = {"fpr": fpr, "tpr": tpr, "auc": auc}
+
+    # Record the winning hyperparameters GridSearchCV picked for this seed,
+    # so we have a permanent record of "what did tuning actually choose",
+    # not just the final AUC.
+    results["LogReg"]["params"] = {"C": float(logreg.get_params()["C"])}
+    results["RBF SVM"]["params"] = {
+        "C": float(svm.get_params()["C"]),
+        "gamma": float(svm.get_params()["gamma"]),
+    }
     return results
 
 
@@ -56,6 +67,18 @@ def main(n_dim=2, n_seeds=5):
         aucs = np.array([r["auc"] for r in runs])
         print(f"  {name}: AUC = {aucs.mean():.3f} +/- {aucs.std():.3f}")
 
+    # Log raw per-seed results (AUC + chosen hyperparameters) to results/,
+    # per the project convention: results/ holds raw numbers, plots/ holds figures.
+    os.makedirs("results", exist_ok=True)
+    csv_path = "results/week1_aucs.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["n_dim", "seed", "model", "auc", "best_params"])
+        for name, runs in all_results.items():
+            for i, r in enumerate(runs):
+                writer.writerow([n_dim, i, name, f"{r['auc']:.4f}", r["params"]])
+    print(f"Saved {csv_path}")
+
     # Plot ROC curves for all seeds, one panel per model
     fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
     for ax, (name, runs) in zip(axes, all_results.items()):
@@ -68,7 +91,6 @@ def main(n_dim=2, n_seeds=5):
     axes[0].set_ylabel("True Positive Rate")
     plt.suptitle(f"ROC curves, {n_dim}D toy dataset, {n_seeds} seeds")
     plt.tight_layout()
-    import os
     os.makedirs("plots", exist_ok=True)
     plt.savefig("plots/roc_curves.png", dpi=150)
     print("Saved plots/roc_curves.png")
