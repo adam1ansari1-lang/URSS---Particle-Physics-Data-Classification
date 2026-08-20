@@ -20,7 +20,7 @@ def run_seed(seed, n_dim=2):
 
     # 2. Split BEFORE scaling, so the scaler never sees test data
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, stratify=y, random_state=seed
+        X, y, test_size=0.3, stratify=y, random_state=seed #test size =0.3 means 30% data in test, 70 in training
     )
 
     # 3. Standardise using training-set statistics only
@@ -32,19 +32,20 @@ def run_seed(seed, n_dim=2):
     logreg = tune_logistic_regression(X_train_s, y_train, random_state=seed)
     svm = tune_rbf_svm(X_train_s, y_train, random_state=seed)
 
-    results = {}
-    for name, model in [("LogReg", logreg), ("RBF SVM", svm)]:
-        y_score = model.predict_proba(X_test_s)[:, 1]
-        fpr, tpr, _ = roc_curve(y_test, y_score)
-        auc = roc_auc_score(y_test, y_score)
-        results[name] = {"fpr": fpr, "tpr": tpr, "auc": auc}
+    results = {} #empty dictionary to store results for both models
+    for name, model in [("LogReg", logreg), ("RBF SVM", svm)]:      #loops twice, once with LogReg and then SVM
+        y_score = model.predict_proba(X_test_s)[:, 1]       #returns 2 columns, 0 and 1 for BR and Sig, grabs just the probability of signal column
+        fpr, tpr, _ = roc_curve(y_test, y_score)       #false postivie rate and TPR, @many thresholds
+                                                      #the _ throws away the third returned value (the threshold value itself)
+        auc = roc_auc_score(y_test, y_score)         #AUC number from same true labels and predicted probabilities
+        results[name] = {"fpr": fpr, "tpr": tpr, "auc": auc} #hands back the dictionary
     return results
 
 
 def main(n_dim=2, n_seeds=5):
     all_results = {"LogReg": [], "RBF SVM": []}
     for seed in range(n_seeds):
-        res = run_seed(seed, n_dim=n_dim)
+        res = run_seed(seed, n_dim=n_dim)  #runs entire pipeline, data gen, split, scale, tune & evaluation
         for name in all_results:
             all_results[name].append(res[name])
         print(f"seed {seed}: LogReg AUC={res['LogReg']['auc']:.3f}  "
@@ -59,7 +60,7 @@ def main(n_dim=2, n_seeds=5):
     # Plot ROC curves for all seeds, one panel per model
     fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
     for ax, (name, runs) in zip(axes, all_results.items()):
-        for i, r in enumerate(runs):
+        for i, r in enumerate(runs):      #i is the seed number and r is the data point itself
             ax.plot(r["fpr"], r["tpr"], alpha=0.5, label=f"seed {i} (AUC={r['auc']:.2f})")
         ax.plot([0, 1], [0, 1], "k--", alpha=0.4, label="chance")
         ax.set_title(name)
