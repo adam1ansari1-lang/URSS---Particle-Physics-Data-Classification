@@ -33,7 +33,7 @@ def tune_logistic_regression(X_train, y_train, cv=5, random_state=0):
     return grid.best_estimator_
 
 
-def def tune_rbf_svm(X_train, y_train, cv=5, random_state=0, fast=False):
+def tune_rbf_svm(X_train, y_train, cv=5, random_state=0, fast=False):
     """
     Tune RBF SVM's C and gamma via cross-validation.
     Both C and gamma are searched, matching the 'equal footing' ground rule:
