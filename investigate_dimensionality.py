@@ -29,7 +29,7 @@ for d in dims_to_test:
     for seed in range(n_seeds):
         X, y = generate_toy_dataset(n_samples=500, n_dim=d, shell_radius=2.0, random_state=seed)
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.3, stratify=y, random_state=seed
+            X, y, test_size=0.3, stratify=y, random_state=seed   #means: when splitting the data into train/test, keep the same class ratio (signal vs background) in both sets as in the original data.
         )
         scaler = StandardScaler().fit(X_train)
         X_train_s, X_test_s = scaler.transform(X_train), scaler.transform(X_test)
