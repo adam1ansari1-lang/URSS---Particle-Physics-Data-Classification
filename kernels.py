@@ -1,6 +1,7 @@
 """
 kernels.py
 Classical model construction for Week 1.
+Week 2: explicit feature maps and kernel functions added below.
 (Quantum kernel code will be added here in a later week.)
 """
 
@@ -61,3 +62,52 @@ def tune_rbf_svm(X_train, y_train, cv=5, random_state=0, fast=False):
     grid.fit(X_train, y_train) #runs the whole search: trains + cross-validates a model for every (C, gamma)
     #pair, tracks the best-scoring combination
     return grid.best_estimator_
+
+
+# ---------------------------------------------------------------------------
+# Week 2: explicit feature maps and direct kernel functions
+# ---------------------------------------------------------------------------
+
+def quadratic_feature_map(X):
+    """
+    Explicit quadratic feature map, built by hand (Task 1):
+        phi(x) = (x1^2, sqrt(2)*x1*x2, x2^2)
+
+    X : ndarray, shape (n_samples, 2)
+    Returns : ndarray, shape (n_samples, 3)
+
+    Sanity check from the worksheet: phi(1,2) = (1, 2*sqrt(2), 4)
+    """
+    x1 = X[:, 0]
+    x2 = X[:, 1]
+    return np.column_stack([x1**2, np.sqrt(2) * x1 * x2, x2**2])
+
+
+def polynomial_kernel(X1, X2, p=2):
+    """
+    Direct polynomial kernel (Tasks 2-3): K(x,y) = (x . y)^p,
+    vectorised over every pair of events in X1 and X2.
+
+    X1 : ndarray, shape (n1, n_dim)
+    X2 : ndarray, shape (n2, n_dim)
+    Returns : ndarray, shape (n1, n2)
+    """
+    return (X1 @ X2.T) ** p
+
+
+def verify_kernel_trick(X, p=2):
+    """
+    Task 4: build the training Gram matrix two independent ways and compare.
+      Method A: explicit feature map, then dot products  -> phi(X) . phi(X)^T
+      Method B: direct kernel formula                     -> K(X, X)
+
+    Only valid for p=2, since quadratic_feature_map is the degree-2 map.
+    Returns (K_explicit, K_direct, max_abs_difference).
+    Expect max_abs_difference ~ 1e-14 to 1e-16 (machine precision).
+    A much larger difference (e.g. ~1e-6) signals a real bug, not rounding.
+    """
+    phi_X = quadratic_feature_map(X)
+    K_explicit = phi_X @ phi_X.T
+    K_direct = polynomial_kernel(X, X, p=p)
+    max_diff = np.max(np.abs(K_explicit - K_direct))
+    return K_explicit, K_direct, max_diff
