@@ -104,4 +104,34 @@ def main():
     plt.savefig('plots/rbf_vs_poly_roc.png', dpi=150, bbox_inches='tight')
     plt.close()
 
+    # Task 7: Gram matrix diagnostics for both kernels
+    X_scaled = StandardScaler().fit_transform(X)
+    K_poly_full = polynomial_kernel(X_scaled, X_scaled, p=2)
+
+    # RBF kernel by hand: exp(-gamma * ||x - x'||^2) for every pair
+    diffs = X_scaled[:, None, :] - X_scaled[None, :, :]
+    K_rbf_full = np.exp(-0.5 * np.sum(diffs**2, axis=2))  # gamma=0.5
+
+"""
+It computes every pairwise difference vector x i ​ −x j ​ 
+between all events in X_scaled, all at once, with no loop. 
+How: X_scaled[:, None, :] reshapes (N, 2) → (N, 1, 2) — inserts a new axis in the middle. 
+X_scaled[None, :, :] reshapes (N, 2) → (1, N, 2) — inserts a new axis at the front.
+Subtracting the two triggers numpy's broadcasting: any axis of size 1 automatically stretches to match the other array's size along that axis.
+So (N,1,2) - (1,N,2) → both size-1 axes stretch to N, giving a result of shape (N, N, 2). What ends up in it: entry diffs[i, j, :] 
+is the 2-number vector x i ​ −x j ​ . 
+Because broadcasting expands every combination automatically, you get all 𝑁 × 𝑁 pairwise differences in one operation, not just one pair.
+
+"""
+
+    print()
+    diagnose_kernel_matrix(K_poly_full, y, "Polynomial kernel")
+    diagnose_kernel_matrix(K_rbf_full, y, "RBF kernel")
+
+
+
+    
+
+
+
   
