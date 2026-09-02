@@ -77,10 +77,15 @@ def quadratic_feature_map(X):
     Returns : ndarray, shape (n_samples, 3)
 
     Sanity check from the worksheet: phi(1,2) = (1, 2*sqrt(2), 4)
+
+    DONE IN EXPERIMENTS WEEK 2
     """
-    x1 = X[:, 0]
-    x2 = X[:, 1]
-    return np.column_stack([x1**2, np.sqrt(2) * x1 * x2, x2**2])
+    x1 = X[:, 0] #pulls out column 0 (every row's 𝑥1 value) as one array
+    x2 = X[:, 1] #pulls out column 1 (every row's x2 value) as one array
+    #then three new arrays get computed
+    return np.column_stack([x1**2, np.sqrt(2) * x1 * x2, x2**2]) 
+
+
 
 
 def polynomial_kernel(X1, X2, p=2):
