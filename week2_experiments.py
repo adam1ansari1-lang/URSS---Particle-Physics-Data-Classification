@@ -124,7 +124,7 @@ Because broadcasting expands every combination automatically, you get all ğ‘ Ã
 
 """
 
-    print()
+print()
     diagnose_kernel_matrix(K_poly_full, y, "Polynomial kernel")
     diagnose_kernel_matrix(K_rbf_full, y, "RBF kernel")
 
