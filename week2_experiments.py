@@ -107,6 +107,8 @@ def main():
     plt.savefig('plots/rbf_vs_poly_roc.png', dpi=150, bbox_inches='tight')
     plt.close()
 
+    best_gamma = rbf_search.best_params_["gamma"]
+
     # Task 7: Gram matrix diagnostics for both kernels
     X_scaled = StandardScaler().fit_transform(X)
     K_poly_full = polynomial_kernel(X_scaled, X_scaled, p=2)
@@ -125,7 +127,7 @@ def main():
     # difference computed in one operation, not just one pair.
     
     diffs = X_scaled[:, None, :] - X_scaled[None, :, :]
-    K_rbf_full = np.exp(-0.5 * np.sum(diffs**2, axis=2))  # gamma=0.5
+    K_rbf_full = np.exp(-best_gamma * np.sum(diffs**2, axis=2))  # We now use the best gamma
 
     #THEN WE GET THE DIFFFFERENCE SQUARED , we need that for the rbf kernel formula 
 
