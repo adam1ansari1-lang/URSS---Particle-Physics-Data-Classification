@@ -125,7 +125,7 @@ def main():
     diffs = X_scaled[:, None, :] - X_scaled[None, :, :]
     K_rbf_full = np.exp(-0.5 * np.sum(diffs**2, axis=2))  # gamma=0.5
 
-    print()
+    
     diagnose_kernel_matrix(K_poly_full, y, "Polynomial kernel")
     diagnose_kernel_matrix(K_rbf_full, y, "RBF kernel")
 
