@@ -78,13 +78,13 @@ def main():
 
     rbf_grid = {'C': [0.1, 1, 10, 100], 'gamma': [0.01, 0.1, 1, 10]}
     rbf_search = GridSearchCV(
-        SVC(kernel='rbf', probability=True), rbf_grid, scoring='roc_auc', cv=5
+        SVC(kernel='rbf'), rbf_grid, scoring='roc_auc', cv=5
     )
     rbf_search.fit(X_train_s, y_train)
 
     poly_grid = {'C': [0.1, 1, 10, 100], 'coef0': [0, 0.5, 1]}
     poly_search = GridSearchCV(
-        SVC(kernel='poly', degree=2, probability=True), poly_grid,
+        SVC(kernel='poly', degree=2), poly_grid,
         scoring='roc_auc', cv=5,
     )
     poly_search.fit(X_train_s, y_train)
