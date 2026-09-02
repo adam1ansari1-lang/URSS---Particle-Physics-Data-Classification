@@ -41,31 +41,32 @@ def main():
     C_value = 1.0
     phi_X = quadratic_feature_map(X)
 
-    svm_explicit = SVC(kernel='linear', C=C_value)  #FINDS phi for each feature map vigorously 
+    svm_explicit = SVC(kernel='linear', C=C_value)  # FINDS phi for each feature map vigorously
     svm_explicit.fit(phi_X, y)
     decision_explicit = svm_explicit.decision_function(phi_X)
 
-    svm_precomputed = SVC(kernel='precomputed', C=C_value) #DOESN'T find phi, does the kernel trick
+    svm_precomputed = SVC(kernel='precomputed', C=C_value)  # DOESN'T find phi, does the kernel trick
     svm_precomputed.fit(K_direct, y)
-    decision_precomputed = svm_precomputed.decision_function(K_direct) 
+    decision_precomputed = svm_precomputed.decision_function(K_direct)
 
-    max_decision_diff = np.max(np.abs(decision_explicit - decision_precomputed))      
+    max_decision_diff = np.max(np.abs(decision_explicit - decision_precomputed))
     agree_fraction = np.mean(
-        svm_explicit.predict(phi_X) == svm_precomputed.predict(K_direct) #we will get an array of predicted labels for each event for each method (1,0,0,1), and we see if the methods align (True True, false) etc, then see the mean of that, 98/100 = 98%
+        svm_explicit.predict(phi_X) == svm_precomputed.predict(K_direct)
+        # we get an array of predicted labels for each event for each method
+        # (1,0,0,1), and we see if the methods align (True, True, False, ...),
+        # then take the mean of that, e.g. 98/100 = 98%
     )
     print(f"\nTask 5 - max decision function difference: {max_decision_diff:.2e}")
     print(f"Task 5 - fraction of matching predictions:  {agree_fraction:.3f}")
-#GET AN EXTREMELY SMALL NUMBER _- EXPECTED SINCE IT IS SAME THING - THIS IS THE ERROR IN THE COMPUTER 
-    
-    # Task 6: RBF vs polynomial kernel, same splits/CV/scaler for both - TWO DIFFERENT KERNELS 
+    # GET AN EXTREMELY SMALL NUMBER - EXPECTED SINCE IT IS THE SAME THING -
+    # THIS IS THE ERROR IN THE COMPUTER
 
-    """
-    RBF: 𝐾 ( 𝑥 , 𝑦 ) = exp ⁡ ( − 𝛾 ∥ 𝑥 − 𝑥 ′ ∥^2 ) — similarity based on distance only 
-    Polynomial: 𝐾 ( 𝑥 , 𝑦 ) = (gamma x⋅y+coef0)^degree - similarity based on dot product
+    # Task 6: RBF vs polynomial kernel, same splits/CV/scaler for both -
+    # TWO DIFFERENT KERNELS
+    #
+    # RBF:        K(x,y) = exp(-gamma * ||x - x'||^2)   -- similarity based on distance only
+    # Polynomial: K(x,y) = (gamma * x.y + coef0)^degree  -- similarity based on dot product
 
-    """
-   
-    
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, stratify=y, random_state=RANDOM_STATE
     )
@@ -109,29 +110,23 @@ def main():
     K_poly_full = polynomial_kernel(X_scaled, X_scaled, p=2)
 
     # RBF kernel by hand: exp(-gamma * ||x - x'||^2) for every pair
+    #
+    # It computes every pairwise difference vector x_i - x_j between all
+    # events in X_scaled, all at once, with no loop.
+    #   X_scaled[:, None, :] reshapes (N, 2) -> (N, 1, 2) - new axis in the middle
+    #   X_scaled[None, :, :] reshapes (N, 2) -> (1, N, 2) - new axis at the front
+    # Subtracting the two triggers numpy's broadcasting: any axis of size 1
+    # automatically stretches to match the other array's size along that axis.
+    # So (N,1,2) - (1,N,2) -> both size-1 axes stretch to N, giving shape (N,N,2).
+    # Entry diffs[i, j, :] is the 2-number vector x_i - x_j - every pairwise
+    # difference computed in one operation, not just one pair.
     diffs = X_scaled[:, None, :] - X_scaled[None, :, :]
     K_rbf_full = np.exp(-0.5 * np.sum(diffs**2, axis=2))  # gamma=0.5
 
-"""
-It computes every pairwise difference vector x i ​ −x j ​ 
-between all events in X_scaled, all at once, with no loop. 
-How: X_scaled[:, None, :] reshapes (N, 2) → (N, 1, 2) — inserts a new axis in the middle. 
-X_scaled[None, :, :] reshapes (N, 2) → (1, N, 2) — inserts a new axis at the front.
-Subtracting the two triggers numpy's broadcasting: any axis of size 1 automatically stretches to match the other array's size along that axis.
-So (N,1,2) - (1,N,2) → both size-1 axes stretch to N, giving a result of shape (N, N, 2). What ends up in it: entry diffs[i, j, :] 
-is the 2-number vector x i ​ −x j ​ . 
-Because broadcasting expands every combination automatically, you get all 𝑁 × 𝑁 pairwise differences in one operation, not just one pair.
-
-"""
-
-print()
+    print()
     diagnose_kernel_matrix(K_poly_full, y, "Polynomial kernel")
     diagnose_kernel_matrix(K_rbf_full, y, "RBF kernel")
 
 
-
-    
-
-
-
-  
+if __name__ == "__main__":
+    main()
