@@ -41,22 +41,31 @@ def main():
     C_value = 1.0
     phi_X = quadratic_feature_map(X)
 
-    svm_explicit = SVC(kernel='linear', C=C_value)
+    svm_explicit = SVC(kernel='linear', C=C_value)  #FINDS phi for each feature map vigorously 
     svm_explicit.fit(phi_X, y)
     decision_explicit = svm_explicit.decision_function(phi_X)
 
-    svm_precomputed = SVC(kernel='precomputed', C=C_value)
+    svm_precomputed = SVC(kernel='precomputed', C=C_value) #DOESN'T find phi, does the kernel trick
     svm_precomputed.fit(K_direct, y)
-    decision_precomputed = svm_precomputed.decision_function(K_direct)
+    decision_precomputed = svm_precomputed.decision_function(K_direct) 
 
-    max_decision_diff = np.max(np.abs(decision_explicit - decision_precomputed))
+    max_decision_diff = np.max(np.abs(decision_explicit - decision_precomputed))      
     agree_fraction = np.mean(
-        svm_explicit.predict(phi_X) == svm_precomputed.predict(K_direct)
+        svm_explicit.predict(phi_X) == svm_precomputed.predict(K_direct) #we will get an array of predicted labels for each event for each method (1,0,0,1), and we see if the methods align (True True, false) etc, then see the mean of that, 98/100 = 98%
     )
     print(f"\nTask 5 - max decision function difference: {max_decision_diff:.2e}")
     print(f"Task 5 - fraction of matching predictions:  {agree_fraction:.3f}")
+#GET AN EXTREMELY SMALL NUMBER _- EXPECTED SINCE IT IS SAME THING - THIS IS THE ERROR IN THE COMPUTER 
+    
+    # Task 6: RBF vs polynomial kernel, same splits/CV/scaler for both - TWO DIFFERENT KERNELS 
 
-    # Task 6: RBF vs polynomial kernel, same splits/CV/scaler for both
+    """
+    RBF: 𝐾 ( 𝑥 , 𝑦 ) = exp ⁡ ( − 𝛾 ∥ 𝑥 − 𝑥 ′ ∥^2 ) — similarity based on distance only 
+    Polynomial: 𝐾 ( 𝑥 , 𝑦 ) = (gamma x⋅y+coef0)^degree - similarity based on dot product
+
+    """
+   
+    
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, stratify=y, random_state=RANDOM_STATE
     )
@@ -95,18 +104,4 @@ def main():
     plt.savefig('plots/rbf_vs_poly_roc.png', dpi=150, bbox_inches='tight')
     plt.close()
 
-    # Task 7: Gram matrix diagnostics for both kernels
-    X_scaled = StandardScaler().fit_transform(X)
-    K_poly_full = polynomial_kernel(X_scaled, X_scaled, p=2)
-
-    # RBF kernel by hand: exp(-gamma * ||x - x'||^2) for every pair
-    diffs = X_scaled[:, None, :] - X_scaled[None, :, :]
-    K_rbf_full = np.exp(-0.5 * np.sum(diffs**2, axis=2))  # gamma=0.5
-
-    print()
-    diagnose_kernel_matrix(K_poly_full, y, "Polynomial kernel")
-    diagnose_kernel_matrix(K_rbf_full, y, "RBF kernel")
-
-
-if __name__ == "__main__":
-    main()
+  
