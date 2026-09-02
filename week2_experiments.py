@@ -35,6 +35,8 @@ def main():
     # to machine precision (~1e-14 to 1e-16)
     K_explicit, K_direct, max_diff = verify_kernel_trick(X, p=2)
     print(f"\nTask 4 - max |Method A - Method B| = {max_diff:.2e}")
+    
+    assert max_diff < 1e-10, f"Kernel trick check failed: {max_diff:.2e}" #RAISES ERROR IF DIFFERENCE IS BIG & "the difference IS small" -> True when things are good
 
     # Task 5: linear SVM on explicit features vs precomputed-kernel SVM
     # should give (near) identical decision functions
