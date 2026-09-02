@@ -93,7 +93,8 @@ def polynomial_kernel(X1, X2, p=2):
     Returns : ndarray, shape (n1, n2)
     """
     return (X1 @ X2.T) ** p
-
+    
+# X2.T flips X2 to shape (n_dim, n2) — now its rows are dimensions instead of events. That makes X1 @ X2.T valid: (n1, n_dim) @ (n_dim, n2) → (n1, n2).
 
 def verify_kernel_trick(X, p=2):
     """
