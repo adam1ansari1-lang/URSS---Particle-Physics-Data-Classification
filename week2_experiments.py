@@ -115,15 +115,21 @@ def main():
     #
     # It computes every pairwise difference vector x_i - x_j between all
     # events in X_scaled, all at once, with no loop.
-    #   X_scaled[:, None, :] reshapes (N, 2) -> (N, 1, 2) - new axis in the middle
+    #   X_scaled[:, None, :] reshapes Training set - (N, 2), (n events and 2 features each) -> (N, 1, 2) - new axis in the middle
     #   X_scaled[None, :, :] reshapes (N, 2) -> (1, N, 2) - new axis at the front
     # Subtracting the two triggers numpy's broadcasting: any axis of size 1
     # automatically stretches to match the other array's size along that axis.
     # So (N,1,2) - (1,N,2) -> both size-1 axes stretch to N, giving shape (N,N,2).
-    # Entry diffs[i, j, :] is the 2-number vector x_i - x_j - every pairwise
+ 
+    # Entry diffs[i, j, :] is the 2-number vector x_i - x_j - every pairwise, diff is the array holding it
     # difference computed in one operation, not just one pair.
+    
     diffs = X_scaled[:, None, :] - X_scaled[None, :, :]
     K_rbf_full = np.exp(-0.5 * np.sum(diffs**2, axis=2))  # gamma=0.5
+
+    #THEN WE GET THE DIFFFFERENCE SQUARED , we need that for the rbf kernel formula 
+
+    #Without diffs we would need to write a nested loop over every pair of events by hand, very long 
 
     
     diagnose_kernel_matrix(K_poly_full, y, "Polynomial kernel")
