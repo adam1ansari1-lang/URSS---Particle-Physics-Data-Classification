@@ -117,3 +117,4 @@ def verify_kernel_trick(X, p=2):
     K_direct = polynomial_kernel(X, X, p=p) #allows us to look at similarity of each Xi event to Xj in same dataset
     max_diff = np.max(np.abs(K_explicit - K_direct))
     return K_explicit, K_direct, max_diff
+#WE TEST THIS IN EXPERIMENTS
