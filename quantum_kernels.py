@@ -120,3 +120,120 @@ for x1, x2 in test_pairs:
     print(f"  exact overlap:     {k_exact:.10f}")
     print(f"  difference:        {diff:.2e}")
     print()
+
+    assert diff < 1e-8, f"Mismatch too large: {diff}"
+
+
+
+# ============ TASK 9 ============
+# Proves that a fixed unitary V, applied only AFTER the data embedding,
+# cancels out of the compute-uncompute kernel completely -- no matter
+# what V actually is. This is why entanglement must be interleaved
+# BETWEEN embeddings (Task 10) rather than tacked on at the end.
+
+def trailing_unitary_A(wires):
+    """One arbitrary, FIXED (x-independent) entangling block."""
+    qml.CNOT(wires=[wires[0], wires[1]])
+    qml.RZ(1.234, wires=wires[1])
+
+
+def trailing_unitary_B(wires):
+    """A DIFFERENT fixed entangling block -- shows the cancellation
+    isn't a fluke of one particular choice of V."""
+    qml.CNOT(wires=[wires[1], wires[0]])
+    qml.RZ(0.777, wires=wires[0])
+    qml.Hadamard(wires=wires[1])
+
+
+def kernel_with_trailing_V(x1, x2, trailing_V, n_qubits=2):
+    """Compute-uncompute circuit with a fixed V tacked on after each
+    embedding, in BOTH the compute and uncompute halves."""
+    dev = qml.device("default.qubit", wires=n_qubits)
+
+    @qml.qnode(dev)
+    def circuit():
+        feature_map(x1, layers=1)                                # compute: E(x1)
+        if trailing_V is not None:
+            trailing_V(wires=range(n_qubits))                     # compute: V
+
+        if trailing_V is not None:
+            qml.adjoint(trailing_V)(wires=range(n_qubits))         # uncompute: V^dagger (undo most recent first)
+        qml.adjoint(feature_map)(x2, layers=1)                     # uncompute: E(x2)^dagger
+
+        return qml.probs(wires=range(n_qubits))
+
+    return circuit()[0]
+
+
+x1_t9 = [0.5, 1.2]
+x2_t9 = [2.0, 0.3]
+
+k_no_V   = kernel_with_trailing_V(x1_t9, x2_t9, trailing_V=None)
+k_with_A = kernel_with_trailing_V(x1_t9, x2_t9, trailing_V=trailing_unitary_A)
+k_with_B = kernel_with_trailing_V(x1_t9, x2_t9, trailing_V=trailing_unitary_B)
+
+print("\n=== Task 9: Feature-map cancellation ===")
+print(f"Kernel with NO trailing V:   {k_no_V:.10f}")
+print(f"Kernel with trailing V = A:  {k_with_A:.10f}")
+print(f"Kernel with trailing V = B:  {k_with_B:.10f}")
+
+max_diff_t9 = max(abs(k_no_V - k_with_A), abs(k_no_V - k_with_B))
+print(f"Largest difference between any two: {max_diff_t9:.2e}")
+
+assert max_diff_t9 < 1e-8, "V should have cancelled completely -- it did not!"
+print("PASS: the trailing unitary V has no effect on the kernel, as predicted.")
+
+
+
+# ============ TASK 10 ============
+# Data re-uploading: interleave a real entangler BETWEEN repeated
+# embeddings, using the SAME feature_map function from Task 2 
+
+#DIFFERENCE between feature map with one layer and task 2 (no entangler at all) = 0
+
+def basic_entangler(wires):
+    """The simplest fixed entangling layer W: one CNOT. Never depends
+    on the data x -- same gate every time, for every event."""
+    qml.CNOT(wires=[wires[0], wires[1]])
+
+
+def state_with_layers(x, layers, n_qubits=2):
+    dev = qml.device("default.qubit", wires=n_qubits)
+
+    @qml.qnode(dev)
+    def circuit():
+        feature_map(x, layers=layers, entangler=basic_entangler)
+        return qml.state()
+
+    return circuit()
+
+
+x_t10 = [0.5, 1.2] #x for task 10 demonstration
+
+print("\n=== Task 10: Data re-uploading ===")
+
+# Sanity check: layers=1 must exactly match the plain embedding from
+# Tasks 2-8, since feature_map's entangler check ("layer < layers - 1")
+# never fires when layers=1 
+state_1layer = state_with_layers(x_t10, layers=100)
+print("layers=1 state:", state_1layer)
+
+# deeper circuit: entangler fires twice (between embeddings
+# 1-2 and 2-3), but never after the third and final embedding.
+state_3layers = state_with_layers(x_t10, layers=3)
+print("layers=3 state:", state_3layers)
+
+# compare layers=1 here against a plain no-entangler embedding.
+dev_plain = qml.device("default.qubit", wires=2)
+
+@qml.qnode(dev_plain)
+def plain_embedding_circuit():
+    feature_map(x_t10, layers=1)   # no entangler at all, matches Task 2
+    return qml.state()
+
+state_plain = plain_embedding_circuit()
+diff_t10 = np.max(np.abs(state_1layer - state_plain))
+print(f"Max difference vs plain Task 2 embedding: {diff_t10:.2e}")
+
+assert diff_t10 < 1e-10, "layers=1 should reduce EXACTLY to the plain embedding!"
+print("PASS: layers=1 reduces exactly to the plain angle-embedding case.")
