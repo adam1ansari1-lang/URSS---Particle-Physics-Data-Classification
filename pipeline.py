@@ -1,21 +1,7 @@
 ﻿"""
 pipeline.py
-Week 4, Task 1: one shared pipeline evaluating all four models
-(Logistic Regression, RBF SVM, Polynomial SVM, Quantum SVM) on the
-SAME train/test split, with the SAME "fit preprocessing on train only"
-rule, the SAME evaluation metric, and the SAME style of cross-validation.
-
-Two families of model share one evaluation:
-  - "Direct" models (Logistic Regression, RBF SVM) call sklearn's normal
-    .fit(X, y) on standardised features.
-  - "Kernel" models (Polynomial, Quantum) build an explicit N x N Gram
-    matrix from TRAIN data, cross-validate C on that matrix via
-    kernel="precomputed", then score on a TEST x TRAIN block.
-
-Quantum kernel matrices here are built directly (exact_kernel_overlap,
-looped). Task 2 swaps this for the cached version from week3_experiments.py
-so the pipeline does not recompute the same quantum kernel over and over --
-kept uncached here so Task 1's logic is easy to read and verify on its own.
+Runs all four models (LogReg, RBF, Polynomial, Quantum SVM) on the same
+split/scaling/metric/CV so AUC differences reflect the model, not setup.
 """
 
 import numpy as np
@@ -25,21 +11,14 @@ from sklearn.svm import SVC
 from sklearn.metrics import roc_auc_score
 
 from kernels import tune_logistic_regression, tune_rbf_svm, polynomial_kernel
-from quantum_kernels import exact_kernel_overlap
 from feature_scaling import scale_to_range
+from kernel_cache import get_or_build_kernel_matrix
 
 
 def tune_precomputed_svm(K_train, y_train, cv=5, C_grid=None):
-    """
-    Cross-validate C for an SVM given a precomputed train-train kernel
-    matrix. Works for ANY kernel (polynomial, quantum, ...) as long as
-    K_train is the full N_train x N_train Gram matrix: GridSearchCV
-    re-indexes both rows and columns per fold for a precomputed kernel,
-    so this is a genuine cross-validation, not a shortcut -- exactly the
-    "equal footing" style already used for tune_rbf_svm.
-    """
+    # Same C grid/CV style as tune_rbf_svm, just for a precomputed kernel.
     if C_grid is None:
-        C_grid = np.logspace(-2, 3, 11)  # same span as tune_rbf_svm's C grid
+        C_grid = np.logspace(-2, 3, 11)
 
     grid = GridSearchCV(
         SVC(kernel="precomputed"),
@@ -52,38 +31,23 @@ def tune_precomputed_svm(K_train, y_train, cv=5, C_grid=None):
 
 
 def build_polynomial_kernel_matrices(X_train, X_test, p=2):
-    """
-    Explicit train-train and test-train Gram matrices using the
-    hand-derived polynomial_kernel formula (kernel(x,y) = (x . y)^p),
-    consistent with using hand-derived kernels over sklearn's built-in
-    kernel='poly'.
-    """
+    # Hand-derived kernel(x,y) = (x . y)^p, not sklearn's built-in 'poly'.
     K_train = polynomial_kernel(X_train, X_train, p=p)
     K_test = polynomial_kernel(X_test, X_train, p=p)
     return K_train, K_test
 
 
-def build_quantum_kernel_matrices(X_train, X_test, n_qubits, layers=1, entangler=None):
-    """
-    Explicit train-train and test-train Gram matrices using the exact
-    (statevector) quantum kernel validated in Week 3.
-    """
-    n_train, n_test = len(X_train), len(X_test)
-
-    K_train = np.zeros((n_train, n_train))
-    for i in range(n_train):
-        for j in range(n_train):
-            K_train[i, j] = exact_kernel_overlap(
-                X_train[i], X_train[j], n_qubits, layers=layers, entangler=entangler
-            )
-
-    K_test = np.zeros((n_test, n_train))
-    for i in range(n_test):
-        for j in range(n_train):
-            K_test[i, j] = exact_kernel_overlap(
-                X_test[i], X_train[j], n_qubits, layers=layers, entangler=entangler
-            )
-
+def build_quantum_kernel_matrices(
+    X_all_angles, train_idx, test_idx, n_qubits, layers=1, entangler=None, angle_max=np.pi
+):
+    # X_all_angles covers the WHOLE dataset -- one cached matrix, sliced
+    # into train/test blocks below, rather than two separate builds.
+    K_full = get_or_build_kernel_matrix(
+        X_all_angles, n_qubits, layers, entangler,
+        extra_config={"angle_max": angle_max},
+    )
+    K_train = K_full[np.ix_(train_idx, train_idx)]
+    K_test = K_full[np.ix_(test_idx, train_idx)]
     return K_train, K_test
 
 
@@ -95,14 +59,7 @@ def run_seed(
     quantum_entangler=None,
     angle_max=np.pi,
 ):
-    """
-    Run all four models on ONE seed's train/test split.
-    Returns {"logreg": auc, "rbf": auc, "poly": auc, "quantum": auc}.
-
-    Shared across every model: this split, "fit-on-train-only" for
-    whatever preprocessing that model needs, roc_auc as the metric,
-    and GridSearchCV with the same cv/scoring settings.
-    """
+    # One split, reused by every model below -- the "equal footing" rule.
     idx = np.arange(len(X_raw))
     train_idx, test_idx = train_test_split(
         idx, test_size=test_size, random_state=seed, stratify=y
@@ -112,14 +69,16 @@ def run_seed(
 
     results = {}
 
-    # --- Direct models: standardised features, scaler fit on train only ---
+    # Scaler fit on TRAIN only -- avoids leaking test info into the scale.
     scaler = StandardScaler().fit(X_train_raw)
     X_train_std = scaler.transform(X_train_raw)
     X_test_std = scaler.transform(X_test_raw)
 
+    # --- Logistic Regression: direct sklearn fit, no kernel involved ---
     logreg = tune_logistic_regression(X_train_std, y_train, random_state=seed)
     results["logreg"] = roc_auc_score(y_test, logreg.decision_function(X_test_std))
 
+    # --- RBF SVM: direct sklearn fit, C and gamma tuned internally ---
     rbf = tune_rbf_svm(X_train_std, y_train, random_state=seed)
     results["rbf"] = roc_auc_score(y_test, rbf.decision_function(X_test_std))
 
@@ -130,15 +89,17 @@ def run_seed(
     poly_svm, poly_params = tune_precomputed_svm(K_train_poly, y_train)
     results["poly"] = roc_auc_score(y_test, poly_svm.decision_function(K_test_poly))
 
-    # --- Quantum SVM: angle-scaled features, precomputed kernel, C tuned by CV ---
+    # --- Quantum SVM: angles need their own scaler (bounded, periodic) ---
     train_min = X_train_raw.min(axis=0)
     train_max = X_train_raw.max(axis=0)
-    X_train_angles = scale_to_range(X_train_raw, train_min, train_max, target_min=0, target_max=angle_max)
-    X_test_angles = scale_to_range(X_test_raw, train_min, train_max, target_min=0, target_max=angle_max)
+    # Applied to the FULL dataset (not just train) so we get one N x N
+    # matrix to cache, then slice into train/test blocks below.
+    X_all_angles = scale_to_range(X_raw, train_min, train_max, target_min=0, target_max=angle_max)
 
     K_train_q, K_test_q = build_quantum_kernel_matrices(
-        X_train_angles, X_test_angles,
+        X_all_angles, train_idx, test_idx,
         n_qubits=n_qubits, layers=quantum_layers, entangler=quantum_entangler,
+        angle_max=angle_max,
     )
     quantum_svm, quantum_params = tune_precomputed_svm(K_train_q, y_train)
     results["quantum"] = roc_auc_score(y_test, quantum_svm.decision_function(K_test_q))
@@ -147,7 +108,7 @@ def run_seed(
 
 
 if __name__ == "__main__":
-    # Quick manual check: run all 4 models over 5 seeds on the Week 1 toy dataset.
+    # Quick manual check: 5 seeds on the Week 1 toy dataset.
     from data import generate_toy_dataset
 
     X_raw, y = generate_toy_dataset(
