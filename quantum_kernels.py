@@ -138,3 +138,12 @@ if __name__ == "__main__":
     diff_t10 = np.max(np.abs(state_1layer - state_plain))
     assert diff_t10 < 1e-10
     print(f"PASS: layers=1 matches plain embedding, diff={diff_t10:.2e}")
+
+
+def chain_entangler(wires):
+    # Generalizes basic_entangler to any qubit count: CNOT each adjacent
+    # pair (0-1, 1-2, 2-3, ...). basic_entangler only ever touches wires
+    # 0 and 1, so it silently under-entangles for n_qubits > 2.
+    wires = list(wires)
+    for i in range(len(wires) - 1):
+        qml.CNOT(wires=[wires[i], wires[i + 1]])
